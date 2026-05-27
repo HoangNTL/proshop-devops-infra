@@ -60,6 +60,16 @@
       args:
         chdir: '{{ app_dir }}'
 
+    - name: Check products count
+      command: >
+        docker exec mongo mongo proshop --quiet --eval "db.products.count()"
+      register: product_count
+      changed_when: false
+
+    - name: Seed database if empty
+      command: docker exec backend npm run data:import
+      when: product_count.stdout | trim == "0"
+
     - name: Install Node Exporter compose directory
       file:
         path: /home/ubuntu/node-exporter

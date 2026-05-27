@@ -1,0 +1,49 @@
+---
+- name: Setup Monitoring Node
+  hosts: monitoring
+  become: true
+
+  vars:
+    monitoring_dir: /home/ubuntu/monitoring
+
+  tasks:
+    - name: Create monitoring directory
+      file:
+        path: '{{ monitoring_dir }}'
+        state: directory
+        owner: ubuntu
+        group: ubuntu
+
+    - name: Copy monitoring compose file
+      copy:
+        src: ../files/compose.monitoring.yml
+        dest: '{{ monitoring_dir }}/compose.yml'
+
+    - name: Create Prometheus config
+      template:
+        src: ../templates/prometheus.yml.j2
+        dest: '{{ monitoring_dir }}/prometheus.yml'
+
+    - name: Create alert rules
+      template:
+        src: ../templates/alert.rules.yml.j2
+        dest: '{{ monitoring_dir }}/alert.rules.yml'
+
+    - name: Create AlertManager config
+      template:
+        src: ../templates/alertmanager.yml.j2
+        dest: '{{ monitoring_dir }}/alertmanager.yml'
+
+    - name: Run monitoring stack
+      command: docker compose up -d
+      args:
+        chdir: '{{ monitoring_dir }}'
+
+    - name: Check running containers
+      command: docker ps
+      register: docker_ps
+      changed_when: false
+
+    - name: Show running containers
+      debug:
+        msg: '{{ docker_ps.stdout }}'
