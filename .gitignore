@@ -19,7 +19,8 @@ terraform.tfvars
 # =========================
 
 *.retry
-inventory.ini
+ansible/inventory.ini
+*.pem
 
 # =========================
 # ENV FILES

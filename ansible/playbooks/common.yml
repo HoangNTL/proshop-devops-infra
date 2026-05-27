@@ -1,0 +1,24 @@
+---
+- name: Install common packages
+  hosts: all
+  become: true
+
+  tasks:
+    - name: Update apt cache
+      apt:
+        update_cache: yes
+        cache_valid_time: 3600
+
+    - name: Install basic packages
+      apt:
+        name:
+          - ca-certificates
+          - curl
+          - gnupg
+          - git
+          - unzip
+          - ufw
+          - lsb-release
+          - apt-transport-https
+          - software-properties-common
+        state: present
