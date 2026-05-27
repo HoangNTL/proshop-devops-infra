@@ -21,6 +21,7 @@ terraform.tfvars
 *.retry
 ansible/inventory.ini
 *.pem
+ansible/group_vars/all/main.yml
 
 # =========================
 # ENV FILES

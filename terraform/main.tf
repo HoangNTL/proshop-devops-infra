@@ -3,7 +3,7 @@
 # =========================
 
 resource "aws_vpc" "main" {
-  cidr_block           = "10.0.0.0/16"
+  cidr_block           = "10.0.0.0/24"
   enable_dns_hostnames = true
   enable_dns_support   = true
 
@@ -14,7 +14,7 @@ resource "aws_vpc" "main" {
 
 resource "aws_subnet" "public" {
   vpc_id                  = aws_vpc.main.id
-  cidr_block              = "10.0.1.0/24"
+  cidr_block              = "10.0.0.0/25"
   availability_zone       = "${var.aws_region}a"
   map_public_ip_on_launch = true
 
@@ -116,7 +116,7 @@ resource "aws_security_group" "app_sg" {
     to_port   = 9100
     protocol  = "tcp"
 
-    cidr_blocks = ["172.31.0.0/16"]
+    cidr_blocks = ["10.0.0.0/24"]
   }
 
   # Promtail -> Loki
@@ -125,7 +125,7 @@ resource "aws_security_group" "app_sg" {
     to_port   = 9080
     protocol  = "tcp"
 
-    cidr_blocks = ["172.31.0.0/16"]
+    cidr_blocks = ["10.0.0.0/24"]
   }
 
   egress {
@@ -194,7 +194,7 @@ resource "aws_security_group" "monitoring_sg" {
     to_port   = 3100
     protocol  = "tcp"
 
-    cidr_blocks = ["172.31.0.0/16"]
+    cidr_blocks = ["10.0.0.0/24"]
   }
 
   egress {
@@ -227,6 +227,12 @@ resource "aws_instance" "app_node" {
     aws_security_group.app_sg.id
   ]
 
+  root_block_device {
+    volume_size           = 20
+    volume_type           = "gp3"
+    delete_on_termination = true
+  }
+
   tags = {
     Name = "proshop-app-node"
   }
@@ -248,6 +254,12 @@ resource "aws_instance" "monitoring_node" {
   vpc_security_group_ids = [
     aws_security_group.monitoring_sg.id
   ]
+
+  root_block_device {
+    volume_size           = 16
+    volume_type           = "gp3"
+    delete_on_termination = true
+  }
 
   tags = {
     Name = "proshop-monitoring-node"

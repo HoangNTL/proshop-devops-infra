@@ -1,0 +1,165 @@
+---
+- name: Setup App Node
+  hosts: app
+  become: true
+
+  vars:
+    app_dir: /home/ubuntu/proshop_mern
+    repo_url: 'https://github.com/bannguyenhuce/proshop_mern.git'
+
+  tasks:
+    - name: Install app node packages
+      apt:
+        name:
+          - nginx
+          - certbot
+          - python3-certbot-nginx
+          - unzip
+        state: present
+        update_cache: yes
+
+    - name: Clone ProShop repository
+      git:
+        repo: '{{ repo_url }}'
+        dest: '{{ app_dir }}'
+        force: yes
+
+    - name: Copy backend Dockerfile
+      copy:
+        src: ../files/Dockerfile.backend
+        dest: '{{ app_dir }}/Dockerfile.backend'
+
+    - name: Copy frontend Dockerfile
+      copy:
+        src: ../files/Dockerfile.frontend
+        dest: '{{ app_dir }}/Dockerfile.frontend'
+
+    - name: Copy app compose file
+      copy:
+        src: ../files/compose.app.yml
+        dest: '{{ app_dir }}/compose.yml'
+
+    - name: Create backend env file
+      copy:
+        dest: '{{ app_dir }}/.env'
+        content: |
+          NODE_ENV=production
+          PORT=5000
+          MONGO_URI=mongodb://mongo:27017/proshop
+          JWT_SECRET=abc123
+          PAYPAL_CLIENT_ID=test
+
+    - name: Update frontend proxy
+      replace:
+        path: '{{ app_dir }}/frontend/package.json'
+        regexp: 'http://127.0.0.1:5000'
+        replace: 'http://backend:5000'
+
+    - name: Run ProShop with Docker Compose
+      command: docker compose up -d --build
+      args:
+        chdir: '{{ app_dir }}'
+
+    - name: Install Node Exporter compose directory
+      file:
+        path: /home/ubuntu/node-exporter
+        state: directory
+        owner: ubuntu
+        group: ubuntu
+
+    - name: Create Node Exporter compose file
+      copy:
+        dest: /home/ubuntu/node-exporter/compose.yml
+        content: |
+          services:
+            node-exporter:
+              image: prom/node-exporter
+              container_name: node-exporter
+              restart: always
+              ports:
+                - "9100:9100"
+
+    - name: Run Node Exporter
+      command: docker compose up -d
+      args:
+        chdir: /home/ubuntu/node-exporter
+
+    - name: Configure Nginx reverse proxy
+      template:
+        src: ../templates/nginx-proshop.conf.j2
+        dest: /etc/nginx/sites-available/proshop
+
+    - name: Enable ProShop Nginx site
+      file:
+        src: /etc/nginx/sites-available/proshop
+        dest: /etc/nginx/sites-enabled/proshop
+        state: link
+        force: yes
+
+    - name: Remove default Nginx site
+      file:
+        path: /etc/nginx/sites-enabled/default
+        state: absent
+
+    - name: Test Nginx config
+      command: nginx -t
+
+    - name: Restart Nginx
+      systemd:
+        name: nginx
+        state: restarted
+        enabled: yes
+
+    - name: Create Promtail directory
+      file:
+        path: /home/ubuntu/promtail
+        state: directory
+        owner: ubuntu
+        group: ubuntu
+
+    - name: Download Promtail
+      get_url:
+        url: https://github.com/grafana/loki/releases/download/v2.9.0/promtail-linux-amd64.zip
+        dest: /home/ubuntu/promtail/promtail-linux-amd64.zip
+
+    - name: Unzip Promtail
+      unarchive:
+        src: /home/ubuntu/promtail/promtail-linux-amd64.zip
+        dest: /home/ubuntu/promtail
+        remote_src: yes
+
+    - name: Make Promtail executable
+      file:
+        path: /home/ubuntu/promtail/promtail-linux-amd64
+        mode: '0755'
+
+    - name: Create Promtail config
+      template:
+        src: ../templates/promtail-config.yml.j2
+        dest: /home/ubuntu/promtail/config-promtail.yml
+
+    - name: Create Promtail systemd service
+      copy:
+        dest: /etc/systemd/system/promtail.service
+        content: |
+          [Unit]
+          Description=Promtail Log Agent
+          After=network.target
+
+          [Service]
+          ExecStart=/home/ubuntu/promtail/promtail-linux-amd64 -config.file=/home/ubuntu/promtail/config-promtail.yml
+          Restart=always
+          User=root
+
+          [Install]
+          WantedBy=multi-user.target
+
+    - name: Reload systemd
+      systemd:
+        daemon_reload: yes
+
+    - name: Enable and start Promtail
+      systemd:
+        name: promtail
+        enabled: yes
+        state: restarted
