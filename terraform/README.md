@@ -95,7 +95,8 @@ Terraform will create:
 - Security Groups
 - App Node EC2
 - Monitoring Node EC2
-- Elastic IP
+- App Node Elastic IP
+- Monitoring Node Elastic IP
 
 ---
 
@@ -110,6 +111,8 @@ Example:
 ```text
 app_node_public_ip
 monitoring_node_public_ip
+app_node_private_ip
+monitoring_node_private_ip
 ```
 
 ---
@@ -126,20 +129,26 @@ terraform destroy
 
 ```text
 Internet
+   ├── App Node Elastic IP
+   │    └── App Node
+   │         ├── Nginx
+   │         ├── Frontend
+   │         ├── Backend
+   │         ├── MongoDB
+   │         ├── Node Exporter
+   │         └── Promtail
    │
-Elastic IP
-   │
-App Node
- ├── Nginx
- ├── Frontend
- ├── Backend
- ├── MongoDB
- ├── Node Exporter
- └── Promtail
-
-Monitoring Node
- ├── Prometheus
- ├── Grafana
- ├── Loki
- └── AlertManager
+   └── Monitoring Node Elastic IP
+        └── Monitoring Node
+             ├── Prometheus
+             ├── Grafana
+             ├── Loki
+             └── AlertManager
 ```
+
+## Security Notes
+
+- App Node public access: `80`, `443`
+- App Node private monitoring access: `9100` from Monitoring Node only
+- Monitoring Node public access: `22`, `3000`
+- Monitoring Node private logging access: `3100` from App Node only

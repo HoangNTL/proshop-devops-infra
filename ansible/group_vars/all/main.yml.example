@@ -1,6 +1,6 @@
 domain_name: "your-domain.duckdns.org"
+
+admin_ip_cidr: "YOUR_PUBLIC_IP/32"
+
 monitoring_private_ip: "MONITORING_PRIVATE_IP"
 app_private_ip: "APP_PRIVATE_IP"
-
-telegram_bot_token: "YOUR_TELEGRAM_BOT_TOKEN"
-telegram_chat_id: "YOUR_TELEGRAM_CHAT_ID"

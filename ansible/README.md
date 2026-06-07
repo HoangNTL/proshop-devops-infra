@@ -10,8 +10,11 @@ ansible/
 ├── group_vars/
 │   └── all/
 │       ├── main.yml
-│       └── main.yml.example
+│       ├── main.yml.example
+│       ├── secrets.yml
+│       └── secrets.yml.example
 ├── templates/
+│   └── app.env.j2
 ├── inventory.ini.example
 ├── README.md
 └── playbooks/
@@ -51,20 +54,26 @@ ansible_ssh_common_args='-o StrictHostKeyChecking=no'
 
 ```bash
 cp group_vars/all/main.yml.example group_vars/all/main.yml
+cp group_vars/all/secrets.yml.example group_vars/all/secrets.yml
 ```
 
 Edit `group_vars/all/main.yml`:
 
 ```yaml
 domain_name: "your-domain.duckdns.org"
+admin_ip_cidr: "YOUR_PUBLIC_IP/32"
 
 monitoring_private_ip: "MONITORING_PRIVATE_IP"
 app_private_ip: "APP_PRIVATE_IP"
+```
 
+Edit `group_vars/all/secrets.yml`:
+
+```yaml
+jwt_secret: "CHANGE_ME_TO_A_LONG_RANDOM_VALUE"
+paypal_client_id: "YOUR_PAYPAL_CLIENT_ID"
 telegram_bot_token: "YOUR_TELEGRAM_BOT_TOKEN"
 telegram_chat_id: "YOUR_TELEGRAM_CHAT_ID"
-
-certbot_email: "your-email@gmail.com"
 ```
 
 ---
@@ -161,7 +170,8 @@ admin / admin
 ## Prometheus
 
 ```text
-http://MONITORING_PUBLIC_IP:9090
+ssh -L 9090:localhost:9090 ubuntu@MONITORING_PUBLIC_IP
+http://localhost:9090
 ```
 
 ---
@@ -178,3 +188,10 @@ Choose:
 - Enter email
 - Accept Terms
 - Redirect HTTP to HTTPS
+
+## Notes
+
+- App `.env` is generated from `templates/app.env.j2`.
+- `group_vars/all/secrets.yml` is local-only and ignored by Git.
+- Frontend and backend containers bind to `127.0.0.1`, so they are reachable only through Nginx on the app node.
+- Monitoring node firewall allows public access only to Grafana on port `3000`.

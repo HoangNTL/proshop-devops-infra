@@ -5,7 +5,8 @@
 
   vars:
     app_dir: /home/ubuntu/proshop_mern
-    repo_url: 'https://github.com/bannguyenhuce/proshop_mern.git'
+    repo_url: '{{ app_repo_url }}'
+    repo_branch: '{{ app_repo_branch }}'
 
   tasks:
     - name: Install app node packages
@@ -22,6 +23,7 @@
       git:
         repo: '{{ repo_url }}'
         dest: '{{ app_dir }}'
+        version: '{{ repo_branch }}'
         force: yes
 
     - name: Copy backend Dockerfile
@@ -40,14 +42,13 @@
         dest: '{{ app_dir }}/compose.yml'
 
     - name: Create backend env file
-      copy:
+      template:
+        src: ../templates/app.env.j2
         dest: '{{ app_dir }}/.env'
-        content: |
-          NODE_ENV=production
-          PORT=5000
-          MONGO_URI=mongodb://mongo:27017/proshop
-          JWT_SECRET=abc123
-          PAYPAL_CLIENT_ID=test
+        owner: ubuntu
+        group: ubuntu
+        mode: '0600'
+      no_log: true
 
     - name: Update frontend proxy
       replace:

@@ -1,14 +1,15 @@
 ---
-- name: Configure basic firewall
-  hosts: all
+- name: Configure app node firewall
+  hosts: app
   become: true
 
   tasks:
-    - name: Allow SSH
+    - name: Allow SSH from admin IP
       ufw:
         rule: allow
         port: '22'
         proto: tcp
+        src: '{{ admin_ip_cidr }}'
 
     - name: Allow HTTP
       ufw:
@@ -22,16 +23,63 @@
         port: '443'
         proto: tcp
 
-    - name: Set UFW default deny incoming
+    - name: Allow Node Exporter from monitoring node
+      ufw:
+        rule: allow
+        port: '9100'
+        proto: tcp
+        src: '{{ monitoring_private_ip }}'
+
+    - name: Set app UFW default deny incoming
       ufw:
         direction: incoming
         policy: deny
 
-    - name: Set UFW default allow outgoing
+    - name: Set app UFW default allow outgoing
       ufw:
         direction: outgoing
         policy: allow
 
-    - name: Enable UFW
+    - name: Enable app UFW
+      ufw:
+        state: enabled
+
+- name: Configure monitoring node firewall
+  hosts: monitoring
+  become: true
+
+  tasks:
+    - name: Allow SSH from admin IP
+      ufw:
+        rule: allow
+        port: '22'
+        proto: tcp
+        src: '{{ admin_ip_cidr }}'
+
+    - name: Allow Grafana from admin IP
+      ufw:
+        rule: allow
+        port: '3000'
+        proto: tcp
+        src: '{{ admin_ip_cidr }}'
+
+    - name: Allow Loki from app node
+      ufw:
+        rule: allow
+        port: '3100'
+        proto: tcp
+        src: '{{ app_private_ip }}'
+
+    - name: Set monitoring UFW default deny incoming
+      ufw:
+        direction: incoming
+        policy: deny
+
+    - name: Set monitoring UFW default allow outgoing
+      ufw:
+        direction: outgoing
+        policy: allow
+
+    - name: Enable monitoring UFW
       ufw:
         state: enabled

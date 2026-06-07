@@ -110,24 +110,6 @@ resource "aws_security_group" "app_sg" {
     cidr_blocks = ["0.0.0.0/0"]
   }
 
-  # Node Exporter
-  ingress {
-    from_port = 9100
-    to_port   = 9100
-    protocol  = "tcp"
-
-    cidr_blocks = ["10.0.0.0/24"]
-  }
-
-  # Promtail -> Loki
-  ingress {
-    from_port = 9080
-    to_port   = 9080
-    protocol  = "tcp"
-
-    cidr_blocks = ["10.0.0.0/24"]
-  }
-
   egress {
     from_port = 0
     to_port   = 0
@@ -170,33 +152,6 @@ resource "aws_security_group" "monitoring_sg" {
     cidr_blocks = [var.my_ip]
   }
 
-  # Prometheus
-  ingress {
-    from_port = 9090
-    to_port   = 9090
-    protocol  = "tcp"
-
-    cidr_blocks = [var.my_ip]
-  }
-
-  # AlertManager
-  ingress {
-    from_port = 9093
-    to_port   = 9093
-    protocol  = "tcp"
-
-    cidr_blocks = [var.my_ip]
-  }
-
-  # Loki
-  ingress {
-    from_port = 3100
-    to_port   = 3100
-    protocol  = "tcp"
-
-    cidr_blocks = ["10.0.0.0/24"]
-  }
-
   egress {
     from_port = 0
     to_port   = 0
@@ -208,6 +163,26 @@ resource "aws_security_group" "monitoring_sg" {
   tags = {
     Name = "proshop-monitoring-sg"
   }
+}
+
+resource "aws_security_group_rule" "monitoring_to_app_node_exporter" {
+  type                     = "ingress"
+  from_port                = 9100
+  to_port                  = 9100
+  protocol                 = "tcp"
+  security_group_id        = aws_security_group.app_sg.id
+  source_security_group_id = aws_security_group.monitoring_sg.id
+  description              = "Allow Prometheus on monitoring node to scrape Node Exporter"
+}
+
+resource "aws_security_group_rule" "app_to_monitoring_loki" {
+  type                     = "ingress"
+  from_port                = 3100
+  to_port                  = 3100
+  protocol                 = "tcp"
+  security_group_id        = aws_security_group.monitoring_sg.id
+  source_security_group_id = aws_security_group.app_sg.id
+  description              = "Allow Promtail on app node to push logs to Loki"
 }
 
 # =========================
@@ -278,5 +253,16 @@ resource "aws_eip" "app_eip" {
 
   tags = {
     Name = "proshop-app-eip"
+  }
+}
+
+resource "aws_eip" "monitoring_eip" {
+
+  instance = aws_instance.monitoring_node.id
+
+  domain = "vpc"
+
+  tags = {
+    Name = "proshop-monitoring-eip"
   }
 }

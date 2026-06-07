@@ -22,6 +22,7 @@ terraform.tfvars
 ansible/inventory.ini
 *.pem
 ansible/group_vars/all/main.yml
+ansible/group_vars/all/secrets.yml
 
 # =========================
 # ENV FILES
