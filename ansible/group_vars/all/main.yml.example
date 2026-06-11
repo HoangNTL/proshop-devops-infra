@@ -1,6 +1,10 @@
 domain_name: "your-domain.duckdns.org"
+certbot_email: "admin@example.com"
 
 admin_ip_cidr: "YOUR_PUBLIC_IP/32"
 
 monitoring_private_ip: "MONITORING_PRIVATE_IP"
 app_private_ip: "APP_PRIVATE_IP"
+
+app_repo_url: "https://github.com/your-account/proshop_mern.git"
+app_repo_branch: "master"

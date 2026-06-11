@@ -7,6 +7,27 @@
     monitoring_dir: /home/ubuntu/monitoring
 
   tasks:
+    - name: Install Fail2ban on Monitoring Node
+      apt:
+        name: fail2ban
+        state: present
+        update_cache: yes
+
+    - name: Configure Fail2ban for Monitoring Node
+      template:
+        src: ../templates/fail2ban-monitoring.j2
+        dest: /etc/fail2ban/jail.local
+        owner: root
+        group: root
+        mode: '0644'
+      notify: Restart fail2ban
+
+    - name: Enable and start Fail2ban
+      systemd:
+        name: fail2ban
+        enabled: yes
+        state: started
+
     - name: Create monitoring directory
       file:
         path: '{{ monitoring_dir }}'
@@ -47,3 +68,9 @@
     - name: Show running containers
       debug:
         msg: '{{ docker_ps.stdout }}'
+
+  handlers:
+    - name: Restart fail2ban
+      systemd:
+        name: fail2ban
+        state: restarted

@@ -61,10 +61,13 @@ Edit `group_vars/all/main.yml`:
 
 ```yaml
 domain_name: "your-domain.duckdns.org"
+certbot_email: "admin@example.com"
 admin_ip_cidr: "YOUR_PUBLIC_IP/32"
 
 monitoring_private_ip: "MONITORING_PRIVATE_IP"
 app_private_ip: "APP_PRIVATE_IP"
+app_repo_url: "https://github.com/your-account/proshop_mern.git"
+app_repo_branch: "master"
 ```
 
 Edit `group_vars/all/secrets.yml`:
@@ -176,18 +179,20 @@ http://localhost:9090
 
 ---
 
-# 8. HTTPS Setup (Manual)
+# 8. HTTPS Setup (Automated)
 
-After DNS is configured and propagated:
+After DNS is configured and propagated, the `app-node.yml` playbook will automatically:
+
+- Request a Let's Encrypt certificate with Certbot
+- Update Nginx for HTTPS
+- Redirect HTTP to HTTPS
+- Enable `certbot.timer` for automatic renewal
+
+Run:
 
 ```bash
-sudo certbot --nginx -d your-domain.duckdns.org
+ansible-playbook -i inventory.ini playbooks/site.yml
 ```
-
-Choose:
-- Enter email
-- Accept Terms
-- Redirect HTTP to HTTPS
 
 ## Notes
 
@@ -195,3 +200,4 @@ Choose:
 - `group_vars/all/secrets.yml` is local-only and ignored by Git.
 - Frontend and backend containers bind to `127.0.0.1`, so they are reachable only through Nginx on the app node.
 - Monitoring node firewall allows public access only to Grafana on port `3000`.
+- DNS for `domain_name` must already point to the App Node public IP before Certbot runs.

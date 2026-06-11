@@ -7,8 +7,18 @@
     app_dir: /home/ubuntu/proshop_mern
     repo_url: '{{ app_repo_url }}'
     repo_branch: '{{ app_repo_branch }}'
+    certbot_webroot: /var/www/certbot
 
   tasks:
+    - name: Validate required SSL variables
+      assert:
+        that:
+          - domain_name is defined
+          - domain_name | length > 0
+          - certbot_email is defined
+          - certbot_email | length > 0
+        fail_msg: "domain_name and certbot_email must be defined in group_vars before running the app playbook."
+
     - name: Install app node packages
       apt:
         name:
@@ -18,6 +28,26 @@
           - unzip
         state: present
         update_cache: yes
+
+    - name: Install Fail2ban on App Node
+      apt:
+        name: fail2ban
+        state: present
+
+    - name: Configure Fail2ban for App Node
+      template:
+        src: ../templates/fail2ban-app.j2
+        dest: /etc/fail2ban/jail.local
+        owner: root
+        group: root
+        mode: '0644'
+      notify: Restart fail2ban
+
+    - name: Enable and start Fail2ban
+      systemd:
+        name: fail2ban
+        enabled: yes
+        state: started
 
     - name: Clone ProShop repository
       git:
@@ -95,10 +125,26 @@
       args:
         chdir: /home/ubuntu/node-exporter
 
+    - name: Check if Let's Encrypt certificate already exists
+      stat:
+        path: '/etc/letsencrypt/live/{{ domain_name }}/fullchain.pem'
+      register: certbot_certificate
+
+    - name: Create Certbot webroot directory
+      file:
+        path: '{{ certbot_webroot }}'
+        state: directory
+        owner: www-data
+        group: www-data
+        mode: '0755'
+
     - name: Configure Nginx reverse proxy
       template:
         src: ../templates/nginx-proshop.conf.j2
         dest: /etc/nginx/sites-available/proshop
+      vars:
+        nginx_ssl_enabled: '{{ certbot_certificate.stat.exists }}'
+      notify: Reload nginx
 
     - name: Enable ProShop Nginx site
       file:
@@ -106,20 +152,60 @@
         dest: /etc/nginx/sites-enabled/proshop
         state: link
         force: yes
+      notify: Reload nginx
 
     - name: Remove default Nginx site
       file:
         path: /etc/nginx/sites-enabled/default
         state: absent
+      notify: Reload nginx
 
-    - name: Test Nginx config
-      command: nginx -t
-
-    - name: Restart Nginx
+    - name: Ensure Nginx is enabled
       systemd:
         name: nginx
-        state: restarted
         enabled: yes
+        state: started
+
+    - name: Apply HTTP-only Nginx configuration before certificate issuance
+      meta: flush_handlers
+
+    - name: Request Let's Encrypt certificate with webroot
+      command:
+        argv:
+          - certbot
+          - certonly
+          - --webroot
+          - -w
+          - '{{ certbot_webroot }}'
+          - -d
+          - '{{ domain_name }}'
+          - --non-interactive
+          - --agree-tos
+          - -m
+          - '{{ certbot_email }}'
+      when: not certbot_certificate.stat.exists
+
+    - name: Check certificate after Certbot execution
+      stat:
+        path: '/etc/letsencrypt/live/{{ domain_name }}/fullchain.pem'
+      register: certbot_certificate_after
+
+    - name: Configure Nginx with HTTPS
+      template:
+        src: ../templates/nginx-proshop.conf.j2
+        dest: /etc/nginx/sites-available/proshop
+      vars:
+        nginx_ssl_enabled: '{{ certbot_certificate_after.stat.exists }}'
+      notify: Reload nginx
+
+    - name: Apply final Nginx configuration
+      meta: flush_handlers
+
+    - name: Enable and start Certbot renewal timer
+      systemd:
+        name: certbot.timer
+        enabled: yes
+        state: started
 
     - name: Create Promtail directory
       file:
@@ -174,3 +260,20 @@
         name: promtail
         enabled: yes
         state: restarted
+
+  handlers:
+    - name: Restart fail2ban
+      systemd:
+        name: fail2ban
+        state: restarted
+
+    - name: Validate nginx config
+      listen: Reload nginx
+      command: nginx -t
+      changed_when: false
+
+    - name: Reload nginx
+      listen: Reload nginx
+      systemd:
+        name: nginx
+        state: reloaded
