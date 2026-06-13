@@ -37,7 +37,7 @@ elif [ "$MODE" = "cpu" ]; then
     ssh -o StrictHostKeyChecking=no \
         -i "$SSH_KEY" \
         "$APP_SERVER" \
-        "sudo apt install stress -y && stress --cpu 8 --timeout 120"
+        "sudo apt install stress -y && stress --cpu 16 --timeout 120"
 
 else
 

@@ -1,5 +1,24 @@
 # Terraform Deployment Guide
 
+## Remote State Overview
+
+Terraform remote state moves the `terraform.tfstate` file out of the local workstation and into an S3 bucket.
+
+That gives you:
+
+- shared state for anyone working on the stack
+- durable state storage that is not tied to a laptop
+- S3 version history for rollback
+- DynamoDB-based locking to prevent two applies from writing at the same time
+
+For this repository, the recommended design is:
+
+- S3 for state storage
+- DynamoDB for lock coordination
+- SSE-S3 for encryption at rest to stay close to AWS Free Tier
+- S3 versioning enabled
+- bucket public access blocked
+
 ## 1. Configure AWS CLI
 
 ```bash
@@ -49,17 +68,50 @@ curl ifconfig.me
 
 ---
 
-## 3. Initialize Terraform
+## 3. Bootstrap Remote State Resources
+
+Create the S3 bucket and DynamoDB table from the bootstrap stack:
 
 ```bash
-cd terraform
+cd terraform/bootstrap
+terraform init
+terraform apply
+```
 
+Terraform will create:
+
+- S3 bucket for remote state
+- DynamoDB table for state locking
+- S3 versioning
+- S3 encryption
+- S3 public access block
+
+## 4. Configure the Root Backend
+
+Copy the example backend config:
+
+```bash
+cd ..
+cp backend.hcl.example backend.hcl
+```
+
+Edit `backend.hcl` so the bucket and lock table names match the bootstrap outputs.
+
+Then initialize the root stack with migration enabled:
+
+```bash
+terraform init -backend-config=backend.hcl -migrate-state
+```
+
+## 5. Initialize Terraform
+
+```bash
 terraform init
 ```
 
 ---
 
-## 4. Validate Configuration
+## 6. Validate Configuration
 
 ```bash
 terraform validate
@@ -67,7 +119,7 @@ terraform validate
 
 ---
 
-## 5. Preview Infrastructure
+## 7. Preview Infrastructure
 
 ```bash
 terraform plan
@@ -75,7 +127,7 @@ terraform plan
 
 ---
 
-## 6. Deploy Infrastructure
+## 8. Deploy Infrastructure
 
 ```bash
 terraform apply
@@ -100,7 +152,7 @@ Terraform will create:
 
 ---
 
-## 7. Get Outputs
+## 9. Get Outputs
 
 ```bash
 terraform output
@@ -117,7 +169,7 @@ monitoring_node_private_ip
 
 ---
 
-## 8. Destroy Infrastructure
+## 10. Destroy Infrastructure
 
 ```bash
 terraform destroy
@@ -145,6 +197,16 @@ Internet
              ├── Loki
              └── AlertManager
 ```
+
+## Remote State Migration Notes
+
+If you are converting an existing local state to S3:
+
+1. Create the bootstrap resources first.
+2. Copy `backend.hcl.example` to `backend.hcl`.
+3. Run `terraform init -migrate-state` from the root `terraform/` directory.
+4. Confirm the state file is now stored in S3.
+5. Keep the bootstrap stack and backend config under version control, but do not commit secrets.
 
 ## Security Notes
 
