@@ -19,3 +19,13 @@ variable "my_ip" {
   description = "Your public IP for SSH access"
   type        = string
 }
+
+variable "environment" {
+  type    = string
+  default = "dev"
+}
+
+variable "vpc_cidr" {
+  type    = string
+  default = "10.0.0.0/24"
+}
