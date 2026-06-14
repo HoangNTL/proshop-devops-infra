@@ -2,7 +2,7 @@ name: 'Terraform CI/CD'
 
 on:
   push:
-    branches: ['main']
+    # branches: ['main']
   pull_request:
 
 jobs:
@@ -28,7 +28,7 @@ jobs:
           aws-region: ${{ secrets.AWS_REGION }}
 
       - name: Terraform Init
-        run: terraform init -reconfigure -backend-config=backend.hcl
+        run: terraform init -reconfigure -backend-config="backend.hcl"
 
       - name: Terraform Format
         run: terraform fmt -check
