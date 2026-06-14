@@ -37,6 +37,15 @@ jobs:
           use_lockfile = true
           EOF
 
+      - name: Create terraform.tfvars
+        run: |
+          cat > terraform.tfvars <<EOF
+          aws_region    = "${{ vars.AWS_REGION }}"
+          instance_type = "t3.small"
+          key_name      = "${{ vars.AWS_KEY_NAME }}"
+          my_ip         = "${{ vars.MY_IP }}"
+          EOF
+
       - name: Terraform Init
         run: terraform init -reconfigure -backend-config="backend.hcl"
 
